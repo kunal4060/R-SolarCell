@@ -36,6 +36,22 @@ FEATURE_COLUMNS = [
 # Targets requested by user
 TARGET_COLUMNS = ["Voc", "Jsc", "FF", "eta"]
 
+FONT_SIZES = {
+	"title": 14,
+	"label": 12,
+	"tick": 11,
+	"legend": 11,
+}
+THRESHOLD = 0.15
+
+
+def accuracy_within_threshold(y_true: np.ndarray, y_pred: np.ndarray, threshold: float = THRESHOLD) -> float:
+	"""Percent of predictions within +/- threshold of actual values."""
+	eps = 1e-8
+	denom = np.maximum(np.abs(y_true), eps)
+	within = np.abs(y_pred - y_true) <= (threshold * denom)
+	return float(np.mean(within))
+
 
 def build_models() -> dict[str, object]:
 	"""Create model dictionary for benchmarking."""
@@ -94,6 +110,7 @@ def evaluate_predictions(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[dict[s
 				"R2": r2_score(target_true, target_pred),
 				"RMSE": float(np.sqrt(mean_squared_error(target_true, target_pred))),
 				"MAE": mean_absolute_error(target_true, target_pred),
+				"Accuracy": accuracy_within_threshold(target_true, target_pred, threshold=0.10),
 			}
 		)
 
@@ -102,6 +119,7 @@ def evaluate_predictions(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[dict[s
 		"R2": np.mean([m["R2"] for m in per_target_metrics]),
 		"RMSE": np.mean([m["RMSE"] for m in per_target_metrics]),
 		"MAE": np.mean([m["MAE"] for m in per_target_metrics]),
+		"Accuracy": np.mean([m["Accuracy"] for m in per_target_metrics]),
 	}
 	return overall, per_target_metrics
 
@@ -110,23 +128,27 @@ def plot_model_performance(metrics_df: pd.DataFrame, out_dir: Path) -> None:
 	"""Create and save bar plots comparing models by target and metric."""
 	targets_only = metrics_df[metrics_df["target"] != "overall"].copy()
 
-	for metric in ["R2", "RMSE", "MAE"]:
+	for metric in ["R2", "RMSE", "MAE", "Accuracy"]:
 		pivot = targets_only.pivot(index="model", columns="target", values=metric)
 		ax = pivot.plot(kind="bar", figsize=(11, 6))
-		ax.set_title(f"Model Comparison - {metric}")
-		ax.set_xlabel("Model")
-		ax.set_ylabel(metric)
-		ax.legend(title="Target", bbox_to_anchor=(1.02, 1), loc="upper left")
+		metric_label = "R\u00b2" if metric == "R2" else metric
+		ax.set_title(f"Model Comparison - {metric_label}", fontsize=FONT_SIZES["title"])
+		ax.set_xlabel("Model", fontsize=FONT_SIZES["label"])
+		ax.set_ylabel(metric_label, fontsize=FONT_SIZES["label"])
+		ax.legend(title="Target", bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=FONT_SIZES["legend"], title_fontsize=FONT_SIZES["legend"])
+		ax.tick_params(labelsize=FONT_SIZES["tick"])
 		plt.tight_layout()
 		plt.savefig(out_dir / f"model_performance_{metric.lower()}.png", dpi=200)
 		plt.close()
 
 	overall = metrics_df[metrics_df["target"] == "overall"].set_index("model")
-	ax = overall[["R2", "RMSE", "MAE"]].plot(kind="bar", figsize=(10, 5))
-	ax.set_title("Overall Model Performance (Average Across Targets)")
-	ax.set_xlabel("Model")
-	ax.set_ylabel("Score")
-	ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
+	overall_plot = overall.rename(columns={"R2": "R\u00b2"})
+	ax = overall_plot[["R\u00b2", "RMSE", "MAE", "Accuracy"]].plot(kind="bar", figsize=(10, 5))
+	ax.set_title("Overall Model Performance (Average Across Targets)", fontsize=FONT_SIZES["title"])
+	ax.set_xlabel("Model", fontsize=FONT_SIZES["label"])
+	ax.set_ylabel("Score", fontsize=FONT_SIZES["label"])
+	ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=FONT_SIZES["legend"])
+	ax.tick_params(labelsize=FONT_SIZES["tick"])
 	plt.tight_layout()
 	plt.savefig(out_dir / "model_performance_overall.png", dpi=200)
 	plt.close()
@@ -156,10 +178,14 @@ def plot_predictions_vs_actual(
 		r2 = r2_score(actual, predicted)
 		rmse = np.sqrt(mean_squared_error(actual, predicted))
 		
-		ax.set_xlabel(f"Actual {target}", fontsize=12)
-		ax.set_ylabel(f"Predicted {target}", fontsize=12)
-		ax.set_title(f"{model_name} - {target} (R² = {r2:.4f}, RMSE = {rmse:.4f})", fontsize=13)
-		ax.legend()
+		ax.set_xlabel(f"Actual {target}", fontsize=FONT_SIZES["label"])
+		ax.set_ylabel(f"Predicted {target}", fontsize=FONT_SIZES["label"])
+		ax.set_title(
+			f"{model_name} - {target} (R\u00b2 = {r2:.4f}, RMSE = {rmse:.4f})",
+			fontsize=FONT_SIZES["title"],
+		)
+		ax.legend(fontsize=FONT_SIZES["legend"])
+		ax.tick_params(labelsize=FONT_SIZES["tick"])
 		ax.grid(True, alpha=0.3)
 		
 		plt.tight_layout()
@@ -218,7 +244,7 @@ def main() -> None:
 		# Generate predicted vs actual plots for this model
 		plot_predictions_vs_actual(model_name, y_test.values, y_pred, TARGET_COLUMNS, output_dir)
 
-	metrics_df = pd.DataFrame(all_rows)[["model", "target", "R2", "RMSE", "MAE"]]
+	metrics_df = pd.DataFrame(all_rows)[["model", "target", "R2", "RMSE", "MAE", "Accuracy"]]
 	metrics_df = metrics_df.sort_values(["target", "R2"], ascending=[True, False]).reset_index(drop=True)
 
 	metrics_csv = output_dir / "model_metrics.csv"

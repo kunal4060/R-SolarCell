@@ -15,6 +15,15 @@ import copy
 import warnings
 warnings.filterwarnings('ignore')
 
+FONT_SIZES = {
+    "title": 14,
+    "label": 12,
+    "tick": 11,
+    "legend": 11,
+    "annotation": 11,
+}
+THRESHOLD = 0.15
+
 
 def load_and_preprocess(csv_path: str):
     """Load CSV and preprocess data."""
@@ -132,7 +141,15 @@ def build_neural_network(model_name: str, input_dim: int, output_dim: int = 4):
     raise ValueError(f"Unsupported model type: {model_name}")
 
 
-def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output_cols):
+def accuracy_within_threshold(y_true: np.ndarray, y_pred: np.ndarray, threshold: float = THRESHOLD) -> float:
+    """Percent of predictions within +/- threshold of actual values."""
+    eps = 1e-8
+    denom = np.maximum(np.abs(y_true), eps)
+    within = np.abs(y_pred - y_true) <= (threshold * denom)
+    return float(np.mean(within))
+
+
+def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
     """Train the neural network model."""
     
     # Normalize features
@@ -238,6 +255,7 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
     rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
+    overall_accuracy = accuracy_within_threshold(y_test, y_pred)
     
     print(f"\n{'='*60}")
     print("TEST SET METRICS")
@@ -246,6 +264,7 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
     print(f"Overall RMSE: {rmse:.6f}")
     print(f"Overall MAE:  {mae:.6f}")
     print(f"Overall R²:   {r2:.6f}")
+    print(f"Overall Acc@10%: {overall_accuracy:.4f}")
     print(f"{'='*60}\n")
     
     # Per-output metrics
@@ -255,15 +274,25 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
         rmse_i = np.sqrt(mse_i)
         mae_i = mean_absolute_error(y_test[:, i], y_pred[:, i])
         r2_i = r2_score(y_test[:, i], y_pred[:, i])
+        acc_i = accuracy_within_threshold(y_test[:, i], y_pred[:, i])
         
         metrics[col] = {
             'mse': float(mse_i),
             'rmse': float(rmse_i),
             'mae': float(mae_i),
-            'r2': float(r2_i)
+            'r2': float(r2_i),
+            'accuracy': float(acc_i)
         }
         
-        print(f"{col:5} | RMSE: {rmse_i:.6f} | MAE: {mae_i:.6f} | R²: {r2_i:.6f}")
+        print(f"{col:5} | RMSE: {rmse_i:.6f} | MAE: {mae_i:.6f} | R²: {r2_i:.6f} | Acc@10%: {acc_i:.4f}")
+
+    metrics["overall"] = {
+        "mse": float(mse),
+        "rmse": float(rmse),
+        "mae": float(mae),
+        "r2": float(r2),
+        "accuracy": float(overall_accuracy),
+    }
     
     # Save model and scalers
     model_dir = Path("neural_network_results") / model_name.lower()
@@ -296,22 +325,24 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
     
     axes[0].plot(history['loss'], label='Train Loss')
     axes[0].plot(history['val_loss'], label='Val Loss')
-    axes[0].set_xlabel('Epoch')
-    axes[0].set_ylabel('Loss (MSE)')
-    axes[0].set_title('Training and Validation Loss')
-    axes[0].legend()
+    axes[0].set_xlabel('Epoch', fontsize=FONT_SIZES["label"])
+    axes[0].set_ylabel('Loss (MSE)', fontsize=FONT_SIZES["label"])
+    axes[0].set_title('Training and Validation Loss', fontsize=FONT_SIZES["title"])
+    axes[0].legend(fontsize=FONT_SIZES["legend"])
+    axes[0].tick_params(labelsize=FONT_SIZES["tick"])
     axes[0].grid(True)
     
     axes[1].plot(history['mae'], label='Train MAE')
     axes[1].plot(history['val_mae'], label='Val MAE')
-    axes[1].set_xlabel('Epoch')
-    axes[1].set_ylabel('MAE')
-    axes[1].set_title('Training and Validation MAE')
-    axes[1].legend()
+    axes[1].set_xlabel('Epoch', fontsize=FONT_SIZES["label"])
+    axes[1].set_ylabel('MAE', fontsize=FONT_SIZES["label"])
+    axes[1].set_title('Training and Validation MAE', fontsize=FONT_SIZES["title"])
+    axes[1].legend(fontsize=FONT_SIZES["legend"])
+    axes[1].tick_params(labelsize=FONT_SIZES["tick"])
     axes[1].grid(True)
     
     plt.tight_layout()
-    fig.suptitle(f"{model_name} Training History", fontsize=12)
+    fig.suptitle(f"{model_name} Training History", fontsize=FONT_SIZES["title"])
     plt.savefig(model_path.parent / "training_history.png", dpi=100)
     plt.close()
     
@@ -331,10 +362,14 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
         max_val = max(actual.max(), predicted.max())
         ax.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect Fit')
         
-        ax.set_title(f'{model_name} - {col} (R² = {metrics[col]["r2"]:.4f})')
-        ax.set_xlabel('Actual Value')
-        ax.set_ylabel('Predicted Value')
-        ax.legend()
+        ax.set_title(
+            f'{model_name} - {col} (R² = {metrics[col]["r2"]:.4f})',
+            fontsize=FONT_SIZES["title"],
+        )
+        ax.set_xlabel('Actual Value', fontsize=FONT_SIZES["label"])
+        ax.set_ylabel('Predicted Value', fontsize=FONT_SIZES["label"])
+        ax.legend(fontsize=FONT_SIZES["legend"])
+        ax.tick_params(labelsize=FONT_SIZES["tick"])
         ax.grid(True)
         
     plt.tight_layout()
@@ -342,29 +377,66 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
     plt.close()
     
     # ---------------------------------------------------------
-    # NEW GRAPHS: Bar charts for R² and RMSE
+    # NEW GRAPHS: Bar charts for R², RMSE, MAE, Accuracy
     # ---------------------------------------------------------
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    
-    # R2 Bar Chart
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    axes = axes.flatten()
+
+    def plot_metric_bar(ax, values, title, ylabel, color, ylim=None):
+        ax.bar(output_cols, values, color=color)
+        ax.set_title(title, fontsize=FONT_SIZES["title"])
+        ax.set_ylabel(ylabel, fontsize=FONT_SIZES["label"])
+        ax.tick_params(labelsize=FONT_SIZES["tick"])
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+        offset = 0.02 if ylim is not None else max(values) * 0.02
+        for i, v in enumerate(values):
+            ax.text(
+                i,
+                v + offset,
+                f'{v:.3f}',
+                ha='center',
+                fontweight='bold',
+                fontsize=FONT_SIZES["annotation"],
+            )
+
     r2_vals = [metrics[col]['r2'] for col in output_cols]
-    axes[0].bar(output_cols, r2_vals, color='mediumseagreen')
-    axes[0].set_title(f'{model_name} - R² Score by Output Parameter')
-    axes[0].set_ylim(0, 1.05)
-    axes[0].set_ylabel('R² Score')
-    axes[0].grid(axis='y', linestyle='--', alpha=0.7)
-    for i, v in enumerate(r2_vals):
-        axes[0].text(i, v + 0.02, f'{v:.3f}', ha='center', fontweight='bold')
-        
-    # RMSE Bar Chart
     rmse_vals = [metrics[col]['rmse'] for col in output_cols]
-    axes[1].bar(output_cols, rmse_vals, color='coral')
-    axes[1].set_title(f'{model_name} - RMSE by Output Parameter')
-    axes[1].set_ylabel('RMSE')
-    axes[1].grid(axis='y', linestyle='--', alpha=0.7)
-    for i, v in enumerate(rmse_vals):
-        axes[1].text(i, v + (max(rmse_vals)*0.02), f'{v:.3f}', ha='center', fontweight='bold')
-        
+    mae_vals = [metrics[col]['mae'] for col in output_cols]
+    acc_vals = [metrics[col]['accuracy'] for col in output_cols]
+
+    plot_metric_bar(
+        axes[0],
+        r2_vals,
+        f'{model_name} - R² Score by Output Parameter',
+        'R² Score',
+        'mediumseagreen',
+        ylim=(0, 1.05),
+    )
+    plot_metric_bar(
+        axes[1],
+        rmse_vals,
+        f'{model_name} - RMSE by Output Parameter',
+        'RMSE',
+        'coral',
+    )
+    plot_metric_bar(
+        axes[2],
+        mae_vals,
+        f'{model_name} - MAE by Output Parameter',
+        'MAE',
+        'slateblue',
+    )
+    plot_metric_bar(
+        axes[3],
+        acc_vals,
+        f'{model_name} - Accuracy@10% by Output Parameter',
+        'Accuracy@10%',
+        'teal',
+        ylim=(0, 1.05),
+    )
+
     plt.tight_layout()
     plt.savefig(model_path.parent / "metrics_bar_charts.png", dpi=100)
     plt.close()
@@ -373,7 +445,44 @@ def train_model(model_name, X_train, X_test, y_train, y_test, input_cols, output
     print(f"Scatter plots saved: {model_path.parent / 'actual_vs_predicted.png'}")
     print(f"Metrics charts saved: {model_path.parent / 'metrics_bar_charts.png'}")
     
-    return model, scaler_X, scaler_y
+    return model, scaler_X, scaler_y, y_pred
+
+
+def plot_nn_comparison(metrics_rows: list[dict], out_dir: Path) -> None:
+    """Plot comparison charts across ANN/CNN/RNN by target and metric."""
+    metrics_df = pd.DataFrame(metrics_rows)
+    targets_only = metrics_df[metrics_df["target"] != "overall"].copy()
+
+    for metric in ["R2", "RMSE", "MAE", "Accuracy"]:
+        pivot = targets_only.pivot(index="model", columns="target", values=metric)
+        ax = pivot.plot(kind="bar", figsize=(11, 6))
+        metric_label = "R²" if metric == "R2" else metric
+        ax.set_title(f"NN Comparison - {metric_label}", fontsize=FONT_SIZES["title"])
+        ax.set_xlabel("Model", fontsize=FONT_SIZES["label"])
+        ax.set_ylabel(metric_label, fontsize=FONT_SIZES["label"])
+        ax.legend(
+            title="Target",
+            bbox_to_anchor=(1.02, 1),
+            loc="upper left",
+            fontsize=FONT_SIZES["legend"],
+            title_fontsize=FONT_SIZES["legend"],
+        )
+        ax.tick_params(labelsize=FONT_SIZES["tick"])
+        plt.tight_layout()
+        plt.savefig(out_dir / f"nn_model_performance_{metric.lower()}.png", dpi=200)
+        plt.close()
+
+    overall = metrics_df[metrics_df["target"] == "overall"].set_index("model")
+    overall_plot = overall.rename(columns={"R2": "R²"})
+    ax = overall_plot[["R²", "RMSE", "MAE", "Accuracy"]].plot(kind="bar", figsize=(10, 5))
+    ax.set_title("NN Overall Performance (Average Across Targets)", fontsize=FONT_SIZES["title"])
+    ax.set_xlabel("Model", fontsize=FONT_SIZES["label"])
+    ax.set_ylabel("Score", fontsize=FONT_SIZES["label"])
+    ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=FONT_SIZES["legend"])
+    ax.tick_params(labelsize=FONT_SIZES["tick"])
+    plt.tight_layout()
+    plt.savefig(out_dir / "nn_model_performance_overall.png", dpi=200)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -389,9 +498,72 @@ if __name__ == "__main__":
     print(f"\nTrain set: {X_train.shape}, Test set: {X_test.shape}")
     
     # Train model
+    predictions_out = pd.DataFrame(y_test, columns=[f"actual_{col}" for col in output_cols])
     for model_name in ["ANN", "CNN", "RNN"]:
-        model, scaler_X, scaler_y = train_model(
-            model_name, X_train, X_test, y_train, y_test, input_cols, output_cols
+        model, scaler_X, scaler_y, y_pred = train_model(
+            model_name, X_train, X_test, y_train, y_test, output_cols
         )
+        pred_df = pd.DataFrame(y_pred, columns=[f"pred_{model_name}_{col}" for col in output_cols])
+        predictions_out = pd.concat([predictions_out, pred_df], axis=1)
+
+    results_root = Path(__file__).resolve().parents[1]
+    nn_outputs_path = results_root / "neural_network_results" / "nn_test_predictions.csv"
+    nn_outputs_path.parent.mkdir(parents=True, exist_ok=True)
+    predictions_out.to_csv(nn_outputs_path, index=False)
+    print(f"\nNeural network combined predictions saved: {nn_outputs_path}")
+
+    combined_performance_path = results_root / "combined_model_performance.csv"
+    performance_rows = []
+
+    ml_metrics_path = results_root / "ml_training" / "results_part1_2_3_4_6_7_8_9_10" / "model_metrics.csv"
+    if ml_metrics_path.exists():
+        ml_metrics = pd.read_csv(ml_metrics_path)
+        for _, row in ml_metrics.iterrows():
+            performance_rows.append(
+                {
+                    "source": "ML",
+                    "model": row["model"],
+                    "target": row["target"],
+                    "R2": row["R2"],
+                    "RMSE": row["RMSE"],
+                    "MAE": row["MAE"],
+                    "Accuracy": row.get("Accuracy", np.nan),
+                }
+            )
+    else:
+        print("Combined performance not created: ML metrics file not found.")
+
+    nn_metrics_rows = []
+    for model_name in ["ann", "cnn", "rnn"]:
+        metrics_path = results_root / "neural_network_results" / model_name / "model_metrics.json"
+        if not metrics_path.exists():
+            print(f"Combined performance skipped: missing {metrics_path}")
+            continue
+        with open(metrics_path, "r") as f:
+            nn_metrics = json.load(f)
+
+        for target_name, values in nn_metrics.items():
+            nn_metrics_rows.append(
+                {
+                    "source": "NN",
+                    "model": model_name.upper(),
+                    "target": target_name,
+                    "R2": values.get("r2"),
+                    "RMSE": values.get("rmse"),
+                    "MAE": values.get("mae"),
+                    "Accuracy": values.get("accuracy"),
+                }
+            )
+
+    if nn_metrics_rows:
+        nn_metrics_df = pd.DataFrame(nn_metrics_rows)
+        nn_metrics_df.to_csv(results_root / "neural_network_results" / "nn_model_metrics.csv", index=False)
+        plot_nn_comparison(nn_metrics_rows, results_root / "neural_network_results")
+        performance_rows.extend(nn_metrics_rows)
+
+    if performance_rows:
+        combined_df = pd.DataFrame(performance_rows)
+        combined_df.to_csv(combined_performance_path, index=False)
+        print(f"Combined model performance saved: {combined_performance_path}")
     
     print("\n✓ Training complete!")
