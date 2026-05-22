@@ -16,11 +16,12 @@ import warnings
 warnings.filterwarnings('ignore')
 
 FONT_SIZES = {
-    "title": 14,
-    "label": 12,
-    "tick": 11,
-    "legend": 11,
-    "annotation": 11,
+    "title": 18,
+    "label": 16,
+    "tick": 12,
+    "legend": 12,
+    "annotation": 12,
+    "title_small": 15,
 }
 THRESHOLD = 0.15
 
@@ -139,6 +140,11 @@ def build_neural_network(model_name: str, input_dim: int, output_dim: int = 4):
     if name == "RNN":
         return RNNModel(input_dim, output_dim)
     raise ValueError(f"Unsupported model type: {model_name}")
+
+
+def display_target_name(name: str) -> str:
+    """Human-friendly label for plots."""
+    return "Efficiency" if name == "eta" else name
 
 
 def accuracy_within_threshold(y_true: np.ndarray, y_pred: np.ndarray, threshold: float = THRESHOLD) -> float:
@@ -362,9 +368,14 @@ def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
         max_val = max(actual.max(), predicted.max())
         ax.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect Fit')
         
+        col_label = display_target_name(col)
         ax.set_title(
-            f'{model_name} - {col} (R² = {metrics[col]["r2"]:.4f})',
-            fontsize=FONT_SIZES["title"],
+            (
+                f"{model_name} - {col_label} Actual Vs Predicted\n"
+                f"R² = {metrics[col]['r2']:.4f} | MAE = {metrics[col]['mae']:.4f} | "
+                f"Accuracy = {metrics[col]['accuracy']:.4f}"
+            ),
+            fontsize=FONT_SIZES["title_small"],
         )
         ax.set_xlabel('Actual Value', fontsize=FONT_SIZES["label"])
         ax.set_ylabel('Predicted Value', fontsize=FONT_SIZES["label"])
@@ -383,7 +394,8 @@ def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
     axes = axes.flatten()
 
     def plot_metric_bar(ax, values, title, ylabel, color, ylim=None):
-        ax.bar(output_cols, values, color=color)
+        display_cols = [display_target_name(col) for col in output_cols]
+        ax.bar(display_cols, values, color=color)
         ax.set_title(title, fontsize=FONT_SIZES["title"])
         ax.set_ylabel(ylabel, fontsize=FONT_SIZES["label"])
         ax.tick_params(labelsize=FONT_SIZES["tick"])
@@ -431,8 +443,8 @@ def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
     plot_metric_bar(
         axes[3],
         acc_vals,
-        f'{model_name} - Accuracy@10% by Output Parameter',
-        'Accuracy@10%',
+        f'{model_name} - Accuracy by Output Parameter',
+        'Accuracy',
         'teal',
         ylim=(0, 1.05),
     )
@@ -451,10 +463,11 @@ def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
 def plot_nn_comparison(metrics_rows: list[dict], out_dir: Path) -> None:
     """Plot comparison charts across ANN/CNN/RNN by target and metric."""
     metrics_df = pd.DataFrame(metrics_rows)
+    metrics_df["target_label"] = metrics_df["target"].apply(display_target_name)
     targets_only = metrics_df[metrics_df["target"] != "overall"].copy()
 
     for metric in ["R2", "RMSE", "MAE", "Accuracy"]:
-        pivot = targets_only.pivot(index="model", columns="target", values=metric)
+        pivot = targets_only.pivot(index="model", columns="target_label", values=metric)
         ax = pivot.plot(kind="bar", figsize=(11, 6))
         metric_label = "R²" if metric == "R2" else metric
         ax.set_title(f"NN Comparison - {metric_label}", fontsize=FONT_SIZES["title"])
