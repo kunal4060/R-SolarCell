@@ -16,12 +16,12 @@ import warnings
 warnings.filterwarnings('ignore')
 
 FONT_SIZES = {
-    "title": 18,
+    "title": 16,
     "label": 16,
-    "tick": 12,
-    "legend": 12,
-    "annotation": 12,
-    "title_small": 15,
+    "tick": 11,
+    "legend": 11,
+    "annotation": 10,
+    "title_small": 12,
 }
 THRESHOLD = 0.15
 
@@ -372,8 +372,8 @@ def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
         ax.set_title(
             (
                 f"{model_name} - {col_label} Actual Vs Predicted\n"
-                f"R² = {metrics[col]['r2']:.4f} | MAE = {metrics[col]['mae']:.4f} | "
-                f"Accuracy = {metrics[col]['accuracy']:.4f}"
+                f"R² = {metrics[col]['r2']:.4f} | RMSE = {metrics[col]['rmse']:.4f} | "
+                f"MAE = {metrics[col]['mae']:.4f} | Accuracy = {metrics[col]['accuracy']:.4f}"
             ),
             fontsize=FONT_SIZES["title_small"],
         )
