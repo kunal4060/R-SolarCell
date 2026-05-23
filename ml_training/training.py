@@ -37,10 +37,12 @@ FEATURE_COLUMNS = [
 TARGET_COLUMNS = ["Voc", "Jsc", "FF", "eta"]
 
 FONT_SIZES = {
-	"title": 14,
-	"label": 12,
+	"title": 16,
+	"label": 16,
 	"tick": 11,
 	"legend": 11,
+	"annotation": 10,
+	"title_small": 12,
 }
 THRESHOLD = 0.15
 
@@ -51,6 +53,11 @@ def accuracy_within_threshold(y_true: np.ndarray, y_pred: np.ndarray, threshold:
 	denom = np.maximum(np.abs(y_true), eps)
 	within = np.abs(y_pred - y_true) <= (threshold * denom)
 	return float(np.mean(within))
+
+
+def display_target_name(name: str) -> str:
+	"""Human-friendly label for plots."""
+	return "Efficiency" if name == "eta" else name
 
 
 def build_models() -> dict[str, object]:
@@ -127,9 +134,10 @@ def evaluate_predictions(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[dict[s
 def plot_model_performance(metrics_df: pd.DataFrame, out_dir: Path) -> None:
 	"""Create and save bar plots comparing models by target and metric."""
 	targets_only = metrics_df[metrics_df["target"] != "overall"].copy()
+	targets_only["target_label"] = targets_only["target"].apply(display_target_name)
 
 	for metric in ["R2", "RMSE", "MAE", "Accuracy"]:
-		pivot = targets_only.pivot(index="model", columns="target", values=metric)
+		pivot = targets_only.pivot(index="model", columns="target_label", values=metric)
 		ax = pivot.plot(kind="bar", figsize=(11, 6))
 		metric_label = "R\u00b2" if metric == "R2" else metric
 		ax.set_title(f"Model Comparison - {metric_label}", fontsize=FONT_SIZES["title"])
@@ -161,36 +169,44 @@ def plot_predictions_vs_actual(
 	target_columns: list[str],
 	out_dir: Path
 ) -> None:
-	"""Create scatter plots of predicted vs actual for each target variable."""
+	"""Create a 2x2 scatter plot of predicted vs actual for each target."""
+	fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+	axes = axes.flatten()
 	for i, target in enumerate(target_columns):
+		ax = axes[i]
 		actual = y_test[:, i]
 		predicted = y_pred[:, i]
-		
-		fig, ax = plt.subplots(figsize=(8, 6))
 		ax.scatter(actual, predicted, alpha=0.6, edgecolors='k', linewidth=0.5)
-		
+
 		# Add perfect prediction line
 		min_val = min(actual.min(), predicted.min())
 		max_val = max(actual.max(), predicted.max())
 		ax.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect Prediction')
-		
-		# Calculate R²
+
+		# Metrics for title
 		r2 = r2_score(actual, predicted)
 		rmse = np.sqrt(mean_squared_error(actual, predicted))
-		
-		ax.set_xlabel(f"Actual {target}", fontsize=FONT_SIZES["label"])
-		ax.set_ylabel(f"Predicted {target}", fontsize=FONT_SIZES["label"])
+		mae = mean_absolute_error(actual, predicted)
+		acc = accuracy_within_threshold(actual, predicted, threshold=0.10)
+		target_label = display_target_name(target)
+
+		ax.set_xlabel(f"Actual {target_label}", fontsize=FONT_SIZES["label"])
+		ax.set_ylabel(f"Predicted {target_label}", fontsize=FONT_SIZES["label"])
 		ax.set_title(
-			f"{model_name} - {target} (R\u00b2 = {r2:.4f}, RMSE = {rmse:.4f})",
-			fontsize=FONT_SIZES["title"],
+			(
+				f"{model_name} - {target_label} Actual Vs Predicted\n"
+				f"R² = {r2:.4f} | RMSE = {rmse:.4f} | MAE = {mae:.4f} | "
+				f"Accuracy = {acc:.4f}"
+			),
+			fontsize=FONT_SIZES["title_small"],
 		)
 		ax.legend(fontsize=FONT_SIZES["legend"])
 		ax.tick_params(labelsize=FONT_SIZES["tick"])
 		ax.grid(True, alpha=0.3)
-		
-		plt.tight_layout()
-		plt.savefig(out_dir / f"predicted_vs_actual_{model_name}_{target}.png", dpi=200)
-		plt.close()
+
+	plt.tight_layout()
+	plt.savefig(out_dir / f"actual_vs_predicted_{model_name}.png", dpi=200)
+	plt.close()
 
 
 def main() -> None:
@@ -263,10 +279,9 @@ def main() -> None:
 	print(f" - {output_dir / 'model_performance_rmse.png'}")
 	print(f" - {output_dir / 'model_performance_mae.png'}")
 	print(f" - {output_dir / 'model_performance_overall.png'}")
-	print("\nPredicted vs Actual plots (by model and target):")
+	print("\nActual vs Predicted plots (by model):")
 	for model_name in models.keys():
-		for target in TARGET_COLUMNS:
-			print(f" - {output_dir / f'predicted_vs_actual_{model_name}_{target}.png'}")
+		print(f" - {output_dir / f'actual_vs_predicted_{model_name}.png'}")
 
 
 if __name__ == "__main__":

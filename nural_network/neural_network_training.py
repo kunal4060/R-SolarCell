@@ -377,8 +377,8 @@ def train_model(model_name, X_train, X_test, y_train, y_test, output_cols):
             ),
             fontsize=FONT_SIZES["title_small"],
         )
-        ax.set_xlabel('Actual Value', fontsize=FONT_SIZES["label"])
-        ax.set_ylabel('Predicted Value', fontsize=FONT_SIZES["label"])
+        ax.set_xlabel(f'Actual {col_label}', fontsize=FONT_SIZES["label"])
+        ax.set_ylabel(f'Predicted {col_label}', fontsize=FONT_SIZES["label"])
         ax.legend(fontsize=FONT_SIZES["legend"])
         ax.tick_params(labelsize=FONT_SIZES["tick"])
         ax.grid(True)
