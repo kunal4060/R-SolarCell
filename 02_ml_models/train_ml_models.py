@@ -211,8 +211,8 @@ def plot_predictions_vs_actual(
 
 def main() -> None:
 	script_dir = Path(__file__).resolve().parent
-	data_path = script_dir / "part1_2_3_4_6_7_8_9_10_combined.csv"
-	output_dir = script_dir / "results_part1_2_3_4_6_7_8_9_10"
+	data_path = script_dir.parent / "01_dataset" / "solar_cell_dataset_3000_samples.csv"
+	output_dir = script_dir.parent / "04_results" / "ml_model_results"
 	output_dir.mkdir(exist_ok=True)
 
 	if not data_path.exists():

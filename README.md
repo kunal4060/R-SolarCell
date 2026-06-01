@@ -1,108 +1,135 @@
-# solarcell-Ai
+# R-SolarCell: Machine Learning for Solar Cell Performance Prediction
 
-This workspace trains and compares machine learning (ML) models and neural networks (NN) for multi-output regression of solar cell parameters.
+> **Predict solar cell efficiency using ML & Neural Networks from 3,000 simulated samples**
 
-## Data
+---
 
-- Input CSV files live in the ML and NN folders.
-- Targets (outputs): Voc, Jsc, FF, eta.
-- Features (ML pipeline): defined in ml_training/training.py as FEATURE_COLUMNS.
-- Features (NN pipeline): all columns except targets and source_file.
+## 🚀 Quick Start
 
-## ML pipeline (ml_training/training.py)
+**Want to run the models right now?** → See [02_QUICK_START_GUIDE.md](05_documentation/02_QUICK_START_GUIDE.md)
 
-1) Load CSV and drop rows with missing values.
-2) Train-test split (80/20, random_state=42).
-3) Train these models:
-   - XGBoost (MultiOutputRegressor)
-   - RandomForest
-   - GradientBoosting (MultiOutputRegressor)
-   - LinearRegression (with StandardScaler)
-   - RidgeRegression (with StandardScaler)
-   - KNeighborsRegressor (with StandardScaler)
-4) Compute metrics per target and overall.
-5) Save predictions and plots.
+```bash
+# Install dependencies
+pip install numpy pandas scikit-learn xgboost matplotlib seaborn
 
-Outputs:
-- ml_training/results_part1_2_3_4_6_7_8_9_10/model_metrics.csv
-- ml_training/results_part1_2_3_4_6_7_8_9_10/test_set_predictions.csv
-- model_performance_*.png
-- predicted_vs_actual_*.png
+# Run ML models
+cd 02_ml_models
+python train_ml_models.py
 
-## NN pipeline (nural_network/neural_network_training.py)
+# Run Neural Networks
+cd 03_neural_networks
+python train_neural_networks.py
+```
 
-1) Load CSV and drop rows with missing values.
-2) Train-test split (80/20, random_state=42).
-3) Standardize X and y with StandardScaler.
-4) Train these networks:
-   - ANN (dense MLP)
-   - CNN (1D conv on features)
-   - RNN (GRU on features)
-5) Compute metrics per target and overall.
-6) Save model weights, scalers, predictions, and plots.
+---
 
-Outputs:
-- neural_network_results/<ann|cnn|rnn>/model_metrics.json
-- neural_network_results/<ann|cnn|rnn>/test_predictions.csv
-- neural_network_results/nn_model_metrics.csv
-- neural_network_results/nn_model_performance_*.png
+## 📚 Documentation
 
-## Combined performance
+All documentation is organized in the **[05_documentation/](05_documentation/)** folder:
 
-combined_model_performance.csv merges ML and NN metrics per target plus overall rows for side-by-side comparisons.
+| # | Document | Description | Reading Time |
+|---|----------|-------------|--------------|
+| 00 | [Documentation Index](05_documentation/00_DOCUMENTATION_INDEX.md) | Navigation guide for all docs | 2 min |
+| 01 | [Project Overview](05_documentation/01_README_PROJECT_OVERVIEW.md) | **Start here** - Complete project guide | 20 min |
+| 02 | [Quick Start Guide](05_documentation/02_QUICK_START_GUIDE.md) | Run models in 5 minutes | 5 min |
+| 03 | [Model Performance](05_documentation/03_MODEL_PERFORMANCE_SUMMARY.md) | R² scores and comparisons | 3 min |
+| 04 | [Data Dictionary](05_documentation/04_DATA_DICTIONARY.md) | Dataset columns explained | 10 min |
+| 05 | [Project Structure](05_documentation/05_PROJECT_STRUCTURE.md) | File organization guide | 5 min |
 
-## Metrics and equations
+---
 
-Let y be the true value, y_hat the prediction, and n the number of samples.
+## 📂 Project Structure
 
-MSE:
-MSE = (1/n) * sum_i (y_i - y_hat_i)^2
+```
+R-SolarCell/
+│
+├── 01_dataset/                    ← Training data (3,000 samples)
+│   └── solar_cell_dataset_3000_samples.csv
+│
+├── 02_ml_models/                  ← Traditional ML training scripts
+│   └── train_ml_models.py         (XGBoost, RF, GB, Ridge, KNN)
+│
+├── 03_neural_networks/            ← Neural network training scripts
+│   └── train_neural_networks.py   (ANN, CNN, RNN)
+│
+├── 04_results/                    ← All model outputs & plots
+│   ├── ml_model_results/          (ML metrics & predictions)
+│   ├── nn_model_results/          (NN metrics & predictions)
+│   ├── all_model_outputs_combined.csv
+│   └── all_model_performance_comparison.csv
+│
+├── 05_documentation/              ← All documentation (read here!)
+│   ├── 00_DOCUMENTATION_INDEX.md
+│   ├── 01_README_PROJECT_OVERVIEW.md
+│   ├── 02_QUICK_START_GUIDE.md
+│   ├── 03_MODEL_PERFORMANCE_SUMMARY.md
+│   ├── 04_DATA_DICTIONARY.md
+│   └── 05_PROJECT_STRUCTURE.md
+│
+└── 06_utilities/                  ← Helper scripts (future use)
+```
 
-RMSE:
-RMSE = sqrt(MSE)
+---
 
-MAE:
-MAE = (1/n) * sum_i |y_i - y_hat_i|
+## 📊 Quick Results
 
-R^2 (coefficient of determination):
-R^2 = 1 - (sum_i (y_i - y_hat_i)^2) / (sum_i (y_i - y_bar)^2)
+### Best Model Performance
 
-Accuracy@threshold (relative error within THRESHOLD):
-Accuracy = (1/n) * sum_i I( |y_i - y_hat_i| <= THRESHOLD * |y_i| )
+| Model | Target | R² Score | Status |
+|-------|--------|----------|--------|
+| **XGBoost** | Jsc | **0.962** | ⭐ Excellent |
+| **XGBoost** | η | **0.890** | ⭐ Excellent |
+| **XGBoost** | Voc | **0.801** | ✅ Good |
+| **ANN** | Overall | **0.82** | ✅ Good |
 
-THRESHOLD is set to 0.15 (15%).
+### Dataset Summary
+- **Samples**: 3,000 simulated solar cells
+- **Input Features**: 9 (layer thickness, bandgap, electron affinity × 3 layers)
+- **Target Variables**: 4 (Voc, Jsc, FF, η)
+- **Simulation**: SCAPS 1-D with Latin Hypercube Sampling
 
-## Model formulas (high level)
+---
 
-Linear Regression:
-y_hat = X * w + b
+## 🔬 What This Project Does
 
-Ridge Regression (L2 regularized):
-min_w ||y - Xw||^2 + lambda * ||w||^2
+1. **Trains ML models** to predict solar cell performance from material parameters
+2. **Compares 8 different models** (5 ML + 3 Neural Networks)
+3. **Achieves R² > 0.8** for Voc, Jsc, and η predictions
+4. **Generates 40+ professional plots** for analysis
+5. **Provides physical insights** into solar cell behavior
 
-KNN Regression:
-y_hat = average of targets of k nearest neighbors
+---
 
-Random Forest Regression:
-y_hat = average of predictions from many decision trees
+## 🛠️ Installation
 
-Gradient Boosting Regression:
-y_hat = sum_m alpha_m * h_m(x) (sequentially added weak learners)
+### Requirements
+- Python 3.8+
+- numpy, pandas, scikit-learn, xgboost, matplotlib, seaborn
 
-XGBoost Regression:
-minimize sum_i L(y_i, y_hat_i) + sum_k Omega(f_k) (regularized boosted trees)
+### Install Command
+```bash
+pip install numpy pandas scikit-learn xgboost matplotlib seaborn tensorflow keras
+```
 
-ANN (MLP):
-h_{l+1} = ReLU(W_l * h_l + b_l)
+---
 
-CNN (1D conv on features):
-h = Conv1D(x) -> ReLU -> Pool -> Dense
+## 📖 Citation
 
-RNN (GRU):
-h_t = GRU(x_t, h_{t-1})
- y_hat = Dense(h_T)
+If you use this work, please cite:
 
-## How to run
+```bibtex
+@software{rsolarcell_2026,
+  title = {R-SolarCell: ML-based Solar Cell Performance Prediction},
+  author = {[Your Name]},
+  year = {2026},
+  url = {[GitHub Repository URL]}
+}
+```
 
-1) python ml_training/training.py
-2) python nural_network/neural_network_training.py
+---
+
+
+---
+
+**Last Updated**: April 26, 2026  
+**Version**: 1.0

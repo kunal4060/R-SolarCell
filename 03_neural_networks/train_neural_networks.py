@@ -499,7 +499,9 @@ def plot_nn_comparison(metrics_rows: list[dict], out_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    csv_path = Path(__file__).resolve().parent / "part1_2_3_4_6_7_8_9_10_combined.csv"
+    csv_path = Path(__file__).resolve().parent.parent / "01_dataset" / "solar_cell_dataset_3000_samples.csv"
+    output_dir = Path(__file__).resolve().parent.parent / "04_results" / "nn_model_results"
+    output_dir.mkdir(exist_ok=True)
     
     # Load and preprocess
     X, y, input_cols, output_cols = load_and_preprocess(csv_path)
