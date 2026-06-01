@@ -117,13 +117,6 @@ pip install numpy pandas scikit-learn xgboost matplotlib seaborn tensorflow kera
 
 If you use this work, please cite:
 
-```bibtex
-@software{rsolarcell_2026,
-  title = {R-SolarCell: ML-based Solar Cell Performance Prediction},
-  author = {[Your Name]},
-  year = {2026},
-  url = {[GitHub Repository URL]}
-}
 ```
 
 ---
